@@ -353,15 +353,19 @@
                 <div class="team-title">📅 日期：${day} (該日共 ${slotPlayers.length} 人報名)</div>`;
 
             if (teams.length === 0) {
-                html += `<p>人數不足（未滿 6 人）無法組隊。</p>`;
+                html += `<p style="color: #666;">人數不足（未滿 6 人）或缺乏必要職業（英雄/刀賊）無法組隊。</p>`;
             } else {
                 teams.forEach((team, tIdx) => {
                     html += `<p><strong>隊伍 ${tIdx + 1} (6人)：</strong> ${team.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job})`).join('、 ')}</p>`;
                 });
-                const totalAssigned = teams.length * 6;
+                const totalAssigned = teams.reduce((acc, t) => acc + t.length, 0);
                 if (slotPlayers.length > totalAssigned) {
-                    const leftovers = slotPlayers.slice(totalAssigned);
-                    html += `<p style="color: #666; font-size: 0.9em;">替補/未入隊 (${leftovers.length}人)：${leftovers.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job})`).join('、 ')}</p>`;
+                    // 找出未入隊的玩家
+                    const assignedNames = new Set(teams.flat().map(p => p.name));
+                    const leftovers = slotPlayers.filter(p => !assignedNames.has(p.name));
+                    if (leftovers.length > 0) {
+                        html += `<p style="color: #666; font-size: 0.9em;">替補/未入隊 (${leftovers.length}人)：${leftovers.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job})`).join('、 ')}</p>`;
+                    }
                 }
             }
 
@@ -375,23 +379,68 @@
         let teams = [];
 
         while (pool.length >= 6) {
+            // 1. 檢查是否有符合條件 2 的「英雄」或「刀賊」至少 1 人
+            const coreMeleeIndices = pool.reduce((acc, p, idx) => {
+                if (p.job === "英雄" || p.job === "刀賊") acc.push(idx);
+                return acc;
+            }, []);
+
+            // 如果連 1 個英雄或刀賊都沒有，無法符合條件 2，停止組隊
+            if (coreMeleeIndices.length === 0) {
+                break;
+            }
+
             let currentTeam = [];
-            
-            let bishopIdx = pool.findIndex(p => p.job === "主教");
-            if (bishopIdx !== -1) {
-                currentTeam.push(pool.splice(bishopIdx, 1)[0]);
+            let jobCounts = {
+                "黑騎士": 0, "拳霸": 0, "神射手": 0, "刺客": 0, "槍神": 0,
+                "主教": 0, "火毒": 0, "冰雷": 0, "英雄": 0, "刀賊": 0, "箭神": 0, "聖騎士": 0
+            };
+
+            // 輔助檢查函數：確認加入該職業是否符合名額上限
+            function canAddJob(job) {
+                const meleeCount = jobCounts["英雄"] + jobCounts["刀賊"];
+                
+                if (job === "英雄" || job === "刀賊") {
+                    return meleeCount < 2; // 英雄 + 刀賊 最少 1 人，最多 2 人
+                }
+                if (job === "黑騎士") return jobCounts["黑騎士"] < 2; // 黑騎士最多 2 人
+                if (["拳霸", "神射手", "刺客", "槍神", "主教", "火毒", "冰雷"].includes(job)) {
+                    return (jobCounts[job] || 0) < 1; // 最多 1 人
+                }
+                return true; // 箭神、聖騎士等職業無特定上限，用於補位
             }
 
-            while (currentTeam.length < 6 && pool.length > 0) {
-                currentTeam.push(pool.shift());
+            // 輔助函數：將玩家加入隊伍並更新計數
+            function addPlayerToTeam(playerIndex) {
+                const player = pool.splice(playerIndex, 1)[0];
+                currentTeam.push(player);
+                jobCounts[player.job] = (jobCounts[player.job] || 0) + 1;
             }
 
+            // 【步驟 A】優先抓 1 位英雄或刀賊（滿足條件 2 最少 1 人）
+            addPlayerToTeam(coreMeleeIndices[0]);
+
+            // 【步驟 B】從剩餘池子中依照條件挑選成員補滿 6 人
+            let i = 0;
+            while (currentTeam.length < 6 && i < pool.length) {
+                const player = pool[i];
+                if (canAddJob(player.job)) {
+                    addPlayerToTeam(i);
+                } else {
+                    i++; // 若該職業名額已滿，檢查下一位
+                }
+            }
+
+            // 【步驟 C】檢查隊伍是否成功滿 6 人
             if (currentTeam.length === 6) {
                 teams.push(currentTeam);
             } else {
+                // 若人數或職業限制導致無法湊滿 6 人，將已抽出的玩家放回池子並結束組隊
+                pool.push(...currentTeam);
                 break;
             }
         }
+
         return teams;
     }
 </script>
