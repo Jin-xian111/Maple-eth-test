@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>楓之谷遠征隊 - 即時同步報名與組隊系統</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", Arial, sans-serif;
+            background-color: #f4f6f9;
+            margin: 0;
+            padding: 15px;
+            color: #333;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        h1, h2 {
+            text-align: center;
+            color: #2c3e50;
+        }
+        .status-bar {
+            text-align: center;
+            font-size: 0.9em;
+            margin-bottom: 15px;
+            padding: 6px;
+            border-radius: 6px;
+            background-color: #e3f2fd;
+            color: #0d47a1;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            box-sizing: border-box;
+            font-size: 1em;
+        }
+        .checkbox-group {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .checkbox-group label {
+            font-weight: normal;
+            cursor: pointer;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 1.1em;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background-color: #1976D2;
+        }
+        .btn-danger {
+            background-color: #f44336;
+            width: auto;
+            padding: 6px 12px;
+            font-size: 0.85em;
+        }
+        .btn-danger:hover {
+            background-color: #d32f2f;
+        }
+        .btn-clear-all {
+            background-color: #e53935;
+            float: right;
+            margin-bottom: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+        th {
+            background-color: #f1f3f5;
+        }
+        .team-box {
+            border: 2px solid #4CAF50;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f9fbf9;
+        }
+        .team-title {
+            font-weight: bold;
+            color: #2e7d32;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+        .clear {
+            clear: both;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>楓之谷遠征隊報名與自動組隊系統</h1>
+    <div class="status-bar" id="syncStatus">🔄 正在連線至雲端資料庫...</div>
+
+    <!-- 1. 報名表單 -->
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+        <h2>1. 填寫報名資料</h2>
+        <div class="form-group">
+            <label for="playerName">玩家暱稱：</label>
+            <input type="text" id="playerName" placeholder="請輸入遊戲名稱">
+        </div>
+        <div class="form-group">
+            <label for="playerJob">職業：</label>
+            <select id="playerJob">
+                <option value="主教">主教</option>
+                <option value="英雄">英雄</option>
+                <option value="黑騎士">黑騎士</option>
+                <option value="聖騎士">聖騎士</option>
+                <option value="箭神">箭神</option>
+                <option value="神射手">神射手</option>
+                <option value="刺客">刺客</option>
+                <option value="刀賊">刀賊</option>
+                <option value="拳霸">拳霸</option>
+                <option value="槍神">槍神</option>
+                <option value="火毒">火毒</option>
+                <option value="冰雷">冰雷</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>可參加時段：</label>
+            <div class="checkbox-group">
+                <label><input type="checkbox" name="timeSlot" value="週六 20:00"> 週六 20:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週日 20:00"> 週日 20:00</label>
+            </div>
+        </div>
+        <button onclick="submitRegistration()">提交報名</button>
+    </div>
+
+    <!-- 2. 目前報名名單 -->
+    <div>
+        <button class="btn-danger btn-clear-all" onclick="clearAllData()">🗑️ 清空所有名單 (需密碼)</button>
+        <h2 style="text-align: left;">2. 目前報名名單 (共 <span id="playerCount">0</span> 人)</h2>
+        <div class="clear"></div>
+        <table>
+            <thead>
+                <tr>
+                    <th>序號</th>
+                    <th>玩家暱稱</th>
+                    <th>職業</th>
+                    <th>可參加時段</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="playerTableBody">
+                <tr><td colspan="5">載入中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 3. 自動組隊功能 -->
+    <div style="margin-top: 30px;">
+        <h2>3. 自動組隊分析</h2>
+        <button style="background-color: #4CAF50;" onclick="generateTeams()">產生最佳組隊名單</button>
+        <div id="teamResults" style="margin-top: 20px;"></div>
+    </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+    // 🔑 已自動帶入您的專屬 Firebase 設定
+    const firebaseConfig = {
+        apiKey: "AIzaSyBs2AIpmqDMMNvIuLBr2fjCbDTzbED3XCM",
+        authDomain: "maple-test-a3ba4.firebaseapp.com",
+        databaseURL: "https://maple-test-a3ba4-default-rtdb.firebaseio.com",
+        projectId: "maple-test-a3ba4",
+        storageBucket: "maple-test-a3ba4.firebasestorage.app",
+        messagingSenderId: "352071996272",
+        appId: "1:352071996272:web:2aae58f9118c82aeba35b5",
+        measurementId: "G-G4JG7VH65R"
+    };
+
+    // 初始化 Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    const playersRef = ref(db, 'maple_players');
+
+    let players = [];
+
+    // 📡 監聽雲端資料庫變更（即時同步）
+    onValue(playersRef, (snapshot) => {
+        const data = snapshot.val();
+        players = data ? data : [];
+        updateUI();
+        document.getElementById('syncStatus').innerText = "🟢 已與雲端資料庫同步（即時連線中）";
+        document.getElementById('syncStatus').style.backgroundColor = "#e8f5e9";
+        document.getElementById('syncStatus').style.color = "#2e7d32";
+    }, (error) => {
+        console.error("Firebase Sync Error:", error);
+        document.getElementById('syncStatus').innerText = "🔴 連線失敗，請檢查 Firebase 資料庫是否已建立（請開啟 Realtime Database）";
+        document.getElementById('syncStatus').style.backgroundColor = "#ffebee";
+        document.getElementById('syncStatus').style.color = "#c62828";
+    });
+
+    // 將資料同步寫回 Firebase
+    function saveToFirebase(newPlayers) {
+        set(playersRef, newPlayers);
+    }
+
+    // 提交報名
+    window.submitRegistration = function() {
+        const nameInput = document.getElementById('playerName');
+        const name = nameInput.value.trim();
+        const job = document.getElementById('playerJob').value;
+        const timeBoxes = document.querySelectorAll('input[name="timeSlot"]:checked');
+        
+        const times = Array.from(timeBoxes).map(cb => cb.value);
+
+        if (!name) {
+            alert("請輸入玩家暱稱！");
+            return;
+        }
+        if (times.length === 0) {
+            alert("請至少選擇一個可參加時段！");
+            return;
+        }
+
+        const newPlayer = { name, job, times };
+        const updatedPlayers = [...players, newPlayer];
+        
+        saveToFirebase(updatedPlayers);
+
+        // 清空輸入欄位
+        nameInput.value = '';
+        timeBoxes.forEach(cb => cb.checked = false);
+    };
+
+    // 刪除單一玩家
+    window.deletePlayer = function(index) {
+        if (confirm(`確定要刪除 ${players[index].name} 嗎？`)) {
+            const updatedPlayers = players.filter((_, i) => i !== index);
+            saveToFirebase(updatedPlayers);
+        }
+    };
+
+    // 重置/清空所有資料 (密碼: SMD)
+    window.clearAllData = function() {
+        const passphrase = prompt("請輸入重置金鑰/密碼以清空名單：");
+        if (passphrase === "SMD") {
+            if (confirm("確認要清空所有已報名的玩家資料嗎？此操作無法復原！")) {
+                saveToFirebase([]);
+            }
+        } else if (passphrase !== null) {
+            alert("密碼錯誤！無法清空資料。");
+        }
+    };
+
+    // 更新介面
+    function updateUI() {
+        const tbody = document.getElementById('playerTableBody');
+        document.getElementById('playerCount').innerText = players.length;
+        tbody.innerHTML = '';
+
+        if (players.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5">目前尚無人報名</td></tr>';
+            return;
+        }
+
+        players.forEach((p, index) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${index + 1}</td>
+                <td>${escapeHtml(p.name)}</td>
+                <td>${escapeHtml(p.job)}</td>
+                <td>${p.times.join(', ')}</td>
+                <td><button class="btn-danger" onclick="deletePlayer(${index})">刪除</button></td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // HTML 轉義防 XSS
+    function escapeHtml(text) {
+        return text.replace(/[&<>"']/g, function(m) {
+            return {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            }[m];
+        });
+    }
+
+    // 自動組隊邏輯
+    window.generateTeams = function() {
+        const resultsDiv = document.getElementById('teamResults');
+        resultsDiv.innerHTML = '';
+
+        if (players.length === 0) {
+            resultsDiv.innerHTML = '<p style="color: red;">目前沒有報名名單可供組隊！</p>';
+            return;
+        }
+
+        const timeSlots = ["週六 20:00", "週日 20:00"];
+
+        timeSlots.forEach(slot => {
+            const slotPlayers = players.filter(p => p.times.includes(slot));
+            const teams = buildTeamsForSlot(slotPlayers);
+
+            let html = `<div class="team-box">
+                <div class="team-title">📅 時段：${slot} (該時段共 ${slotPlayers.length} 人報名)</div>`;
+
+            if (teams.length === 0) {
+                html += `<p>人數不足或無法符合組隊條件。</p>`;
+            } else {
+                teams.forEach((team, tIdx) => {
+                    html += `<p><strong>隊伍 ${tIdx + 1} (6人)：</strong> ${team.map(p => `${p.name} (${p.job})`).join('、 ')}</p>`;
+                });
+                const totalAssigned = teams.length * 6;
+                if (slotPlayers.length > totalAssigned) {
+                    const leftovers = slotPlayers.slice(totalAssigned);
+                    html += `<p style="color: #666; font-size: 0.9em;">替補/未入隊 (${leftovers.length}人)：${leftovers.map(p => `${p.name} (${p.job})`).join('、 ')}</p>`;
+                }
+            }
+
+            html += `</div>`;
+            resultsDiv.innerHTML += html;
+        });
+    };
+
+    function buildTeamsForSlot(availablePlayers) {
+        let pool = [...availablePlayers];
+        let teams = [];
+
+        while (pool.length >= 6) {
+            let currentTeam = [];
+            
+            // 1. 優先補主教
+            let bishopIdx = pool.findIndex(p => p.job === "主教");
+            if (bishopIdx !== -1) {
+                currentTeam.push(pool.splice(bishopIdx, 1)[0]);
+            }
+
+            // 2. 補滿 6 人
+            while (currentTeam.length < 6 && pool.length > 0) {
+                currentTeam.push(pool.shift());
+            }
+
+            if (currentTeam.length === 6) {
+                teams.push(currentTeam);
+            } else {
+                break;
+            }
+        }
+        return teams;
+    }
+</script>
+
+</body>
+</html>
