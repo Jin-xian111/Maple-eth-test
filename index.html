@@ -81,6 +81,25 @@
         button:hover {
             background-color: #1976D2;
         }
+        .btn-group-teams {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .btn-team-gen {
+            background-color: #4CAF50;
+            flex: 1;
+        }
+        .btn-team-gen:hover {
+            background-color: #388E3C;
+        }
+        .btn-team-copy {
+            background-color: #FF9800;
+            flex: 1;
+        }
+        .btn-team-copy:hover {
+            background-color: #F57C00;
+        }
         .btn-danger {
             background-color: #f44336;
             width: auto;
@@ -152,7 +171,7 @@
                 <option value="聖騎士">聖騎士</option>
                 <option value="箭神">箭神</option>
                 <option value="神射手">神射手</option>
-                <option value="刺客">刺客</option>
+                <option value="標賊">標賊</option>
                 <option value="刀賊">刀賊</option>
                 <option value="拳霸">拳霸</option>
                 <option value="槍神">槍神</option>
@@ -200,7 +219,10 @@
     <!-- 3. 自動組隊功能 -->
     <div style="margin-top: 30px;">
         <h2>3. 自動組隊分析</h2>
-        <button style="background-color: #4CAF50;" onclick="generateTeams()">產生最佳組隊名單</button>
+        <div class="btn-group-teams">
+            <button class="btn-team-gen" onclick="generateTeams()">產生最佳組隊名單</button>
+            <button class="btn-team-copy" onclick="copyTeamsText()">📋 複製組隊名單 (文字格式)</button>
+        </div>
         <div id="teamResults" style="margin-top: 20px;"></div>
     </div>
 </div>
@@ -360,7 +382,6 @@
                 });
                 const totalAssigned = teams.reduce((acc, t) => acc + t.length, 0);
                 if (slotPlayers.length > totalAssigned) {
-                    // 找出未入隊的玩家
                     const assignedNames = new Set(teams.flat().map(p => p.name));
                     const leftovers = slotPlayers.filter(p => !assignedNames.has(p.name));
                     if (leftovers.length > 0) {
@@ -374,68 +395,114 @@
         });
     };
 
+    window.copyTeamsText = function() {
+        if (players.length === 0) {
+            alert("目前尚無報名資料可複製！");
+            return;
+        }
+
+        const days = ["週一", "週二", "週三", "週四", "週五", "週六", "週日"];
+        let outputText = "⚔️ 【楓之谷遠征隊 最佳組隊名單】 ⚔️\n\n";
+        let hasAnyTeam = false;
+
+        days.forEach(day => {
+            const slotPlayers = players.filter(p => p.times.includes(day));
+            if (slotPlayers.length === 0) return;
+
+            hasAnyTeam = true;
+            const teams = buildTeamsForSlot(slotPlayers);
+
+            outputText += `📅 【${day}】 (共 ${slotPlayers.length} 人報名)\n`;
+
+            if (teams.length === 0) {
+                outputText += `  └ ⚠️ 人數不足或缺乏英雄/刀賊，無法成立隊伍。\n\n`;
+            } else {
+                teams.forEach((team, tIdx) => {
+                    outputText += `  ▶ 隊伍 ${tIdx + 1} (6人)：\n`;
+                    team.forEach((p, pIdx) => {
+                        outputText += `    ${pIdx + 1}. ${p.name} (Lv.${p.level || '-'} ${p.job})\n`;
+                    });
+                });
+
+                const totalAssigned = teams.reduce((acc, t) => acc + t.length, 0);
+                if (slotPlayers.length > totalAssigned) {
+                    const assignedNames = new Set(teams.flat().map(p => p.name));
+                    const leftovers = slotPlayers.filter(p => !assignedNames.has(p.name));
+                    if (leftovers.length > 0) {
+                        outputText += `  └ 替補/未入隊 (${leftovers.length}人)：${leftovers.map(p => `${p.name} (${p.job})`).join('、 ')}\n`;
+                    }
+                }
+                outputText += "\n";
+            }
+        });
+
+        if (!hasAnyTeam) {
+            alert("目前尚無任何可進行組隊的資料！");
+            return;
+        }
+
+        navigator.clipboard.writeText(outputText).then(() => {
+            alert("✅ 組隊文字已成功複製到剪貼簿！可直接貼上至群組。");
+        }).catch(err => {
+            console.error("複製失敗：", err);
+            alert("複製失敗，請手動選取文字。");
+        });
+    };
+
     function buildTeamsForSlot(availablePlayers) {
         let pool = [...availablePlayers];
         let teams = [];
 
         while (pool.length >= 6) {
-            // 1. 檢查是否有符合條件 2 的「英雄」或「刀賊」至少 1 人
             const coreMeleeIndices = pool.reduce((acc, p, idx) => {
                 if (p.job === "英雄" || p.job === "刀賊") acc.push(idx);
                 return acc;
             }, []);
 
-            // 如果連 1 個英雄或刀賊都沒有，無法符合條件 2，停止組隊
             if (coreMeleeIndices.length === 0) {
                 break;
             }
 
             let currentTeam = [];
             let jobCounts = {
-                "黑騎士": 0, "拳霸": 0, "神射手": 0, "刺客": 0, "槍神": 0,
+                "黑騎士": 0, "拳霸": 0, "神射手": 0, "標賊": 0, "槍神": 0,
                 "主教": 0, "火毒": 0, "冰雷": 0, "英雄": 0, "刀賊": 0, "箭神": 0, "聖騎士": 0
             };
 
-            // 輔助檢查函數：確認加入該職業是否符合名額上限
             function canAddJob(job) {
                 const meleeCount = jobCounts["英雄"] + jobCounts["刀賊"];
                 
                 if (job === "英雄" || job === "刀賊") {
-                    return meleeCount < 2; // 英雄 + 刀賊 最少 1 人，最多 2 人
+                    return meleeCount < 2;
                 }
-                if (job === "黑騎士") return jobCounts["黑騎士"] < 2; // 黑騎士最多 2 人
-                if (["拳霸", "神射手", "刺客", "槍神", "主教", "火毒", "冰雷"].includes(job)) {
-                    return (jobCounts[job] || 0) < 1; // 最多 1 人
+                if (job === "黑騎士") return jobCounts["黑騎士"] < 2;
+                if (["拳霸", "神射手", "標賊", "槍神", "主教", "火毒", "冰雷"].includes(job)) {
+                    return (jobCounts[job] || 0) < 1;
                 }
-                return true; // 箭神、聖騎士等職業無特定上限，用於補位
+                return true;
             }
 
-            // 輔助函數：將玩家加入隊伍並更新計數
             function addPlayerToTeam(playerIndex) {
                 const player = pool.splice(playerIndex, 1)[0];
                 currentTeam.push(player);
                 jobCounts[player.job] = (jobCounts[player.job] || 0) + 1;
             }
 
-            // 【步驟 A】優先抓 1 位英雄或刀賊（滿足條件 2 最少 1 人）
             addPlayerToTeam(coreMeleeIndices[0]);
 
-            // 【步驟 B】從剩餘池子中依照條件挑選成員補滿 6 人
             let i = 0;
             while (currentTeam.length < 6 && i < pool.length) {
                 const player = pool[i];
                 if (canAddJob(player.job)) {
                     addPlayerToTeam(i);
                 } else {
-                    i++; // 若該職業名額已滿，檢查下一位
+                    i++;
                 }
             }
 
-            // 【步驟 C】檢查隊伍是否成功滿 6 人
             if (currentTeam.length === 6) {
                 teams.push(currentTeam);
             } else {
-                // 若人數或職業限制導致無法湊滿 6 人，將已抽出的玩家放回池子並結束組隊
                 pool.push(...currentTeam);
                 break;
             }
