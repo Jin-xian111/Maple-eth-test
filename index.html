@@ -182,13 +182,13 @@
         <div class="form-group">
             <label>可參加日期：</label>
             <div class="checkbox-group">
-                <label><input type="checkbox" name="timeSlot" value="週一"> 週一</label>
                 <label><input type="checkbox" name="timeSlot" value="週二"> 週二</label>
                 <label><input type="checkbox" name="timeSlot" value="週三"> 週三</label>
                 <label><input type="checkbox" name="timeSlot" value="週四"> 週四</label>
                 <label><input type="checkbox" name="timeSlot" value="週五"> 週五</label>
                 <label><input type="checkbox" name="timeSlot" value="週六"> 週六</label>
                 <label><input type="checkbox" name="timeSlot" value="週日"> 週日</label>
+                <label><input type="checkbox" name="timeSlot" value="週一"> 週一</label>
             </div>
         </div>
         <button onclick="submitRegistration()">提交報名</button>
@@ -247,6 +247,9 @@
     const db = getDatabase(app);
     const playersRef = ref(db, 'maple_players');
 
+    // 定義統一的星期順序：二、三、四、五、六、日、一
+    const DAYS_ORDER = ["週二", "週三", "週四", "週五", "週六", "週日", "週一"];
+
     let players = [];
 
     onValue(playersRef, (snapshot) => {
@@ -275,7 +278,9 @@
         const job = document.getElementById('playerJob').value;
         const timeBoxes = document.querySelectorAll('input[name="timeSlot"]:checked');
         
-        const times = Array.from(timeBoxes).map(cb => cb.value);
+        // 依照自訂順序排序勾選的日期
+        const selectedTimes = Array.from(timeBoxes).map(cb => cb.value);
+        const times = DAYS_ORDER.filter(day => selectedTimes.includes(day));
 
         if (!name) {
             alert("請輸入玩家暱稱！");
@@ -329,13 +334,15 @@
         }
 
         players.forEach((p, index) => {
+            // 讓玩家顯示的日期也按照「二~一」順序呈現
+            const sortedTimes = DAYS_ORDER.filter(day => p.times && p.times.includes(day));
             const tr = document.createElement('tr');
             tr.innerHTML = `
                 <td>${index + 1}</td>
                 <td>${escapeHtml(p.name)}</td>
                 <td>Lv.${escapeHtml(p.level || '-')}</td>
                 <td>${escapeHtml(p.job)}</td>
-                <td>${p.times.join(', ')}</td>
+                <td>${sortedTimes.join(', ')}</td>
                 <td><button class="btn-danger" onclick="deletePlayer(${index})">刪除</button></td>
             `;
             tbody.appendChild(tr);
@@ -363,10 +370,8 @@
             return;
         }
 
-        const days = ["週一", "週二", "週三", "週四", "週五", "週六", "週日"];
-
-        days.forEach(day => {
-            const slotPlayers = players.filter(p => p.times.includes(day));
+        DAYS_ORDER.forEach(day => {
+            const slotPlayers = players.filter(p => p.times && p.times.includes(day));
             if (slotPlayers.length === 0) return;
 
             const teams = buildTeamsForSlot(slotPlayers);
@@ -401,12 +406,11 @@
             return;
         }
 
-        const days = ["週一", "週二", "週三", "週四", "週五", "週六", "週日"];
         let outputText = "⚔️ 【楓之谷遠征隊 最佳組隊名單】 ⚔️\n\n";
         let hasAnyTeam = false;
 
-        days.forEach(day => {
-            const slotPlayers = players.filter(p => p.times.includes(day));
+        DAYS_ORDER.forEach(day => {
+            const slotPlayers = players.filter(p => p.times && p.times.includes(day));
             if (slotPlayers.length === 0) return;
 
             hasAnyTeam = true;
