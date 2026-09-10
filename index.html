@@ -50,13 +50,21 @@
             font-size: 1em;
         }
         .checkbox-group {
-            display: flex;
-            gap: 15px;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 10px;
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
         }
         .checkbox-group label {
             font-weight: normal;
             cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            margin: 0;
         }
         button {
             width: 100%;
@@ -151,8 +159,15 @@
         <div class="form-group">
             <label>可參加時段：</label>
             <div class="checkbox-group">
+                <label><input type="checkbox" name="timeSlot" value="週五 20:00"> 週五 20:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週五 21:00"> 週五 21:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週五 22:00"> 週五 22:00</label>
                 <label><input type="checkbox" name="timeSlot" value="週六 20:00"> 週六 20:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週六 21:00"> 週六 21:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週六 22:00"> 週六 22:00</label>
                 <label><input type="checkbox" name="timeSlot" value="週日 20:00"> 週日 20:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週日 21:00"> 週日 21:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週日 22:00"> 週日 22:00</label>
             </div>
         </div>
         <button onclick="submitRegistration()">提交報名</button>
@@ -192,7 +207,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // 🔑 已自動帶入您的專屬 Firebase 設定
     const firebaseConfig = {
         apiKey: "AIzaSyBs2AIpmqDMMNvIuLBr2fjCbDTzbED3XCM",
         authDomain: "maple-test-a3ba4.firebaseapp.com",
@@ -204,14 +218,12 @@
         measurementId: "G-G4JG7VH65R"
     };
 
-    // 初始化 Firebase
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
     const playersRef = ref(db, 'maple_players');
 
     let players = [];
 
-    // 📡 監聽雲端資料庫變更（即時同步）
     onValue(playersRef, (snapshot) => {
         const data = snapshot.val();
         players = data ? data : [];
@@ -221,17 +233,15 @@
         document.getElementById('syncStatus').style.color = "#2e7d32";
     }, (error) => {
         console.error("Firebase Sync Error:", error);
-        document.getElementById('syncStatus').innerText = "🔴 連線失敗，請檢查 Firebase 資料庫是否已建立（請開啟 Realtime Database）";
+        document.getElementById('syncStatus').innerText = "🔴 連線失敗，請檢查 Realtime Database 開通設定";
         document.getElementById('syncStatus').style.backgroundColor = "#ffebee";
         document.getElementById('syncStatus').style.color = "#c62828";
     });
 
-    // 將資料同步寫回 Firebase
     function saveToFirebase(newPlayers) {
         set(playersRef, newPlayers);
     }
 
-    // 提交報名
     window.submitRegistration = function() {
         const nameInput = document.getElementById('playerName');
         const name = nameInput.value.trim();
@@ -254,12 +264,10 @@
         
         saveToFirebase(updatedPlayers);
 
-        // 清空輸入欄位
         nameInput.value = '';
         timeBoxes.forEach(cb => cb.checked = false);
     };
 
-    // 刪除單一玩家
     window.deletePlayer = function(index) {
         if (confirm(`確定要刪除 ${players[index].name} 嗎？`)) {
             const updatedPlayers = players.filter((_, i) => i !== index);
@@ -267,7 +275,6 @@
         }
     };
 
-    // 重置/清空所有資料 (密碼: SMD)
     window.clearAllData = function() {
         const passphrase = prompt("請輸入重置金鑰/密碼以清空名單：");
         if (passphrase === "SMD") {
@@ -279,7 +286,6 @@
         }
     };
 
-    // 更新介面
     function updateUI() {
         const tbody = document.getElementById('playerTableBody');
         document.getElementById('playerCount').innerText = players.length;
@@ -303,7 +309,6 @@
         });
     }
 
-    // HTML 轉義防 XSS
     function escapeHtml(text) {
         return text.replace(/[&<>"']/g, function(m) {
             return {
@@ -316,7 +321,6 @@
         });
     }
 
-    // 自動組隊邏輯
     window.generateTeams = function() {
         const resultsDiv = document.getElementById('teamResults');
         resultsDiv.innerHTML = '';
@@ -326,17 +330,20 @@
             return;
         }
 
-        const timeSlots = ["週六 20:00", "週日 20:00"];
+        const allCheckboxes = document.querySelectorAll('input[name="timeSlot"]');
+        const timeSlots = Array.from(allCheckboxes).map(cb => cb.value);
 
         timeSlots.forEach(slot => {
             const slotPlayers = players.filter(p => p.times.includes(slot));
+            if (slotPlayers.length === 0) return;
+
             const teams = buildTeamsForSlot(slotPlayers);
 
             let html = `<div class="team-box">
                 <div class="team-title">📅 時段：${slot} (該時段共 ${slotPlayers.length} 人報名)</div>`;
 
             if (teams.length === 0) {
-                html += `<p>人數不足或無法符合組隊條件。</p>`;
+                html += `<p>人數不足（未滿 6 人）無法組隊。</p>`;
             } else {
                 teams.forEach((team, tIdx) => {
                     html += `<p><strong>隊伍 ${tIdx + 1} (6人)：</strong> ${team.map(p => `${p.name} (${p.job})`).join('、 ')}</p>`;
@@ -360,13 +367,11 @@
         while (pool.length >= 6) {
             let currentTeam = [];
             
-            // 1. 優先補主教
             let bishopIdx = pool.findIndex(p => p.job === "主教");
             if (bishopIdx !== -1) {
                 currentTeam.push(pool.splice(bishopIdx, 1)[0]);
             }
 
-            // 2. 補滿 6 人
             while (currentTeam.length < 6 && pool.length > 0) {
                 currentTeam.push(pool.shift());
             }
