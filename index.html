@@ -13,7 +13,7 @@
             color: #333;
         }
         .container {
-            max-width: 900px;
+            max-width: 950px;
             margin: 0 auto;
             background: #fff;
             padding: 20px;
@@ -54,9 +54,11 @@
             grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
             gap: 10px;
             background: #fff;
-            padding: 10px;
+            padding: 12px;
             border: 1px solid #ddd;
             border-radius: 6px;
+            max-height: 250px;
+            overflow-y: auto;
         }
         .checkbox-group label {
             font-weight: normal;
@@ -157,8 +159,20 @@
             </select>
         </div>
         <div class="form-group">
-            <label>可參加時段：</label>
+            <label>可參加時段（全週）：</label>
             <div class="checkbox-group">
+                <label><input type="checkbox" name="timeSlot" value="週一 20:00"> 週一 20:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週一 21:00"> 週一 21:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週一 22:00"> 週一 22:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週二 20:00"> 週二 20:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週二 21:00"> 週二 21:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週二 22:00"> 週二 22:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週三 20:00"> 週三 20:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週三 21:00"> 週三 21:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週三 22:00"> 週三 22:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週四 20:00"> 週四 20:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週四 21:00"> 週四 21:00</label>
+                <label><input type="checkbox" name="timeSlot" value="週四 22:00"> 週四 22:00</label>
                 <label><input type="checkbox" name="timeSlot" value="週五 20:00"> 週五 20:00</label>
                 <label><input type="checkbox" name="timeSlot" value="週五 21:00"> 週五 21:00</label>
                 <label><input type="checkbox" name="timeSlot" value="週五 22:00"> 週五 22:00</label>
