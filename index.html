@@ -236,7 +236,7 @@
         document.getElementById('syncStatus').style.color = "#2e7d32";
     }, (error) => {
         console.error("Firebase Sync Error:", error);
-        document.getElementById('syncStatus').innerText = "🔴 連線失敗，請檢查 Realtime Database 開通設定";
+        document.getElementById('syncStatus').innerText = "🔴 連線失敗，請檢查 Realtime Database 開通與規則設定";
         document.getElementById('syncStatus').style.backgroundColor = "#ffebee";
         document.getElementById('syncStatus').style.color = "#c62828";
     });
