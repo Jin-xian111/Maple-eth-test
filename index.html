@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>楓之谷遠征隊 - 即時同步報名與組隊系統</title>
+    <title>楓之谷遠征隊 - 即時同步報名與拖拉組隊看板</title>
     <style>
         body {
             font-family: "Microsoft JhengHei", Arial, sans-serif;
@@ -13,14 +13,14 @@
             color: #333;
         }
         .container {
-            max-width: 950px;
+            max-width: 1100px;
             margin: 0 auto;
             background: #fff;
             padding: 20px;
             border-radius: 12px;
             box-shadow: 0 4px 15px rgba(0,0,0,0.08);
         }
-        h1, h2 {
+        h1, h2, h3 {
             text-align: center;
             color: #2c3e50;
         }
@@ -149,13 +149,115 @@
         th {
             background-color: #f1f3f5;
         }
-        .team-box {
-            border: 2px solid #4CAF50;
-            border-radius: 8px;
+
+        /* 方塊與拖拉板塊樣式 */
+        .day-board {
+            border: 2px solid #2196F3;
+            border-radius: 10px;
             padding: 15px;
-            margin-bottom: 15px;
-            background-color: #f9fbf9;
+            margin-bottom: 25px;
+            background-color: #fafafa;
         }
+        .day-header {
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #1976D2;
+            margin-bottom: 12px;
+            padding-bottom: 6px;
+            border-bottom: 2px solid #bbdefb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .teams-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+        .team-dropzone {
+            background: #ffffff;
+            border: 2px dashed #b0bec5;
+            border-radius: 8px;
+            padding: 10px;
+            min-height: 160px;
+            transition: background 0.2s, border-color 0.2s;
+        }
+        .team-dropzone.drag-over {
+            background: #e1f5fe;
+            border-color: #0288d1;
+        }
+        .team-zone-title {
+            font-weight: bold;
+            font-size: 1em;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .team-1-title { color: #2e7d32; }
+        .team-2-title { color: #ed6c02; }
+        .backup-zone-title { color: #795548; }
+
+        /* 玩家方塊卡片 Card */
+        .player-card {
+            background: #ffffff;
+            border: 1px solid #cfd8dc;
+            border-left: 5px solid #607d8b;
+            border-radius: 6px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            cursor: grab;
+            user-select: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        .player-card:active {
+            cursor: grabbing;
+            transform: scale(1.02);
+            box-shadow: 0 5px 10px rgba(0,0,0,0.15);
+        }
+        .player-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .player-name {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 0.95em;
+        }
+        .player-details {
+            font-size: 0.8em;
+            color: #666;
+        }
+        .job-badge {
+            font-size: 0.75em;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: white;
+            font-weight: bold;
+        }
+
+        /* 職業顏色標籤 */
+        .job-英雄, .job-刀賊 { background-color: #e53935; }
+        .job-主教 { background-color: #fbc02d; color: #333; }
+        .job-黑騎士, .job-聖騎士 { background-color: #5c6bc0; }
+        .job-箭神, .job-神射手 { background-color: #43a047; }
+        .job-標賊, .job-拳霸, .job-槍神 { background-color: #00acc1; }
+        .job-火毒, .job-冰雷 { background-color: #ab47bc; }
+
+        .missing-warning {
+            color: #d32f2f;
+            font-weight: bold;
+            background-color: #ffebee;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.8em;
+        }
+
         .stat-box {
             border: 2px solid #2196F3;
             border-radius: 8px;
@@ -163,37 +265,13 @@
             margin-bottom: 15px;
             background-color: #f4f9ff;
         }
-        .team-title {
-            font-weight: bold;
-            color: #2e7d32;
-            font-size: 1.1em;
-            margin-bottom: 10px;
-        }
         .stat-title {
             font-weight: bold;
             color: #1565c0;
             font-size: 1.1em;
             margin-bottom: 10px;
         }
-        .missing-warning {
-            color: #d32f2f;
-            font-weight: bold;
-            background-color: #ffebee;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.9em;
-            margin-left: 8px;
-        }
-        .backup-text {
-            color: #795548;
-            font-weight: bold;
-            margin-top: 10px;
-            padding-top: 8px;
-            border-top: 1px dashed #ccc;
-        }
-        .clear {
-            clear: both;
-        }
+        .clear { clear: both; }
 
         /* Modal 彈出視窗樣式 */
         .modal-overlay {
@@ -218,18 +296,14 @@
             gap: 10px;
             margin-top: 20px;
         }
-        .btn-secondary {
-            background-color: #78909C;
-        }
-        .btn-secondary:hover {
-            background-color: #546E7A;
-        }
+        .btn-secondary { background-color: #78909C; }
+        .btn-secondary:hover { background-color: #546E7A; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h1>楓之谷遠征隊報名與自動組隊系統</h1>
+    <h1>楓之谷遠征隊報名與拖拉組隊系統</h1>
     <div class="status-bar" id="syncStatus">🔄 正在連線至雲端資料庫...</div>
 
     <!-- 1. 報名表單 -->
@@ -302,18 +376,18 @@
         </table>
     </div>
 
-    <!-- 3. 自動組隊功能 -->
-    <div style="margin-top: 30px;">
-        <h2>3. 自動組隊分析</h2>
+    <!-- 3. 管理者拖拉式週曆組隊看板 -->
+    <div style="margin-top: 35px;">
+        <h2>3. 管理者拖拉組隊週曆 (可自由拖拉方塊微調陣容)</h2>
         <div class="btn-group-teams">
-            <button class="btn-team-gen" onclick="generateTeams()">產生最佳組隊名單</button>
-            <button class="btn-team-copy" onclick="copyTeamsText()">📋 複製組隊名單 (文字格式)</button>
+            <button class="btn-team-gen" onclick="autoGenerateAndRender()">🤖 一鍵自動套用最佳組隊</button>
+            <button class="btn-team-copy" onclick="copyTeamsText()">📋 複製確認後的組隊名單 (文字格式)</button>
         </div>
-        <div id="teamResults" style="margin-top: 20px;"></div>
+        <div id="weeklyBoard" style="margin-top: 20px;"></div>
     </div>
 
     <!-- 4. 每日可參加人員統計 -->
-    <div style="margin-top: 30px;">
+    <div style="margin-top: 35px;">
         <h2>4. 每日可參加人員統計 (週二 ~ 週一)</h2>
         <button class="btn-stat-copy" onclick="copyDailyStatsText()">📋 複製每日統計 (文字格式)</button>
         <div id="dailyStatResults"></div>
@@ -376,17 +450,24 @@
     let players = [];
     let currentEditIndex = null;
 
+    // 儲存每天管理者拖拉微調後的隊伍狀態
+    // 格式： { "週二": { team1: [...], team2: [...], backup: [...] } }
+    let weeklyBoardState = {};
+
     onValue(playersRef, (snapshot) => {
         const data = snapshot.val();
         players = data ? data : [];
         updateUI();
         generateDailyStats();
+        initWeeklyBoardState(); // 初始化拖拉看板狀態
+        renderWeeklyBoard();
+
         document.getElementById('syncStatus').innerText = "🟢 已與雲端資料庫同步（即時連線中）";
         document.getElementById('syncStatus').style.backgroundColor = "#e8f5e9";
         document.getElementById('syncStatus').style.color = "#2e7d32";
     }, (error) => {
         console.error("Firebase Sync Error:", error);
-        document.getElementById('syncStatus').innerText = "🔴 連線失敗，請檢查 Realtime Database 開通與規則設定";
+        document.getElementById('syncStatus').innerText = "🔴 連線失敗，請檢查 Realtime Database 設定";
         document.getElementById('syncStatus').style.backgroundColor = "#ffebee";
         document.getElementById('syncStatus').style.color = "#c62828";
     });
@@ -409,20 +490,11 @@
         const selectedTimes = Array.from(timeBoxes).map(cb => cb.value);
         const times = DAYS_ORDER.filter(day => selectedTimes.includes(day));
 
-        if (!name) {
-            alert("請輸入玩家暱稱！");
-            return;
-        }
-        if (!level) {
-            alert("請輸入玩家等級！");
-            return;
-        }
-        if (times.length === 0) {
-            alert("請至少選擇一個可參加日期！");
-            return;
-        }
+        if (!name) { alert("請輸入玩家暱稱！"); return; }
+        if (!level) { alert("請輸入玩家等級！"); return; }
+        if (times.length === 0) { alert("請至少選擇一個可參加日期！"); return; }
 
-        const newPlayer = { name, level, job, runs, times };
+        const newPlayer = { id: Date.now() + "_" + Math.random().toString(36).substr(2,4), name, level, job, runs, times };
         const updatedPlayers = [...players, newPlayer];
         
         saveToFirebase(updatedPlayers);
@@ -527,6 +599,223 @@
         });
     }
 
+    /* -------------------------------------------------------------
+       拖拉週曆看板核心邏輯
+    ------------------------------------------------------------- */
+    function initWeeklyBoardState() {
+        DAYS_ORDER.forEach(day => {
+            if (!weeklyBoardState[day]) {
+                const dayPlayers = players.filter(p => p.times && p.times.includes(day));
+                const autoRes = buildTeamsForSlot(dayPlayers);
+                weeklyBoardState[day] = {
+                    team1: autoRes.teams[0] ? autoRes.teams[0].players : [],
+                    team2: autoRes.teams[1] ? autoRes.teams[1].players : [],
+                    backup: autoRes.backups
+                };
+            }
+        });
+    }
+
+    window.autoGenerateAndRender = function() {
+        DAYS_ORDER.forEach(day => {
+            const dayPlayers = players.filter(p => p.times && p.times.includes(day));
+            const autoRes = buildTeamsForSlot(dayPlayers);
+            weeklyBoardState[day] = {
+                team1: autoRes.teams[0] ? autoRes.teams[0].players : [],
+                team2: autoRes.teams[1] ? autoRes.teams[1].players : [],
+                backup: autoRes.backups
+            };
+        });
+        renderWeeklyBoard();
+        alert("✅ 已自動套用最佳組隊至週曆看板！您可以手動拖拉微調。");
+    };
+
+    function renderWeeklyBoard() {
+        const boardDiv = document.getElementById('weeklyBoard');
+        boardDiv.innerHTML = '';
+
+        DAYS_ORDER.forEach(day => {
+            const dayPlayers = players.filter(p => p.times && p.times.includes(day));
+            if (dayPlayers.length === 0) return;
+
+            const dayState = weeklyBoardState[day] || { team1: [], team2: [], backup: [] };
+
+            // 檢查警告
+            const t1Notes = checkTeamWarnings(dayState.team1, dayState.team1.concat(dayState.team2));
+            const t2Notes = checkTeamWarnings(dayState.team2, dayState.team1.concat(dayState.team2));
+
+            let dayHtml = `
+            <div class="day-board">
+                <div class="day-header">
+                    <span>📅 ${day} (當日報名：${dayPlayers.length} 人)</span>
+                </div>
+                <div class="teams-container">
+                    <!-- 隊伍 1 -->
+                    <div class="team-dropzone" data-day="${day}" data-zone="team1" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                        <div class="team-zone-title team-1-title">
+                            <span>⚔️ 隊伍 1 (${dayState.team1.length}/6人)</span>
+                            ${t1Notes ? `<span class="missing-warning">⚠️ ${t1Notes}</span>` : ''}
+                        </div>
+                        <div class="cards-list">
+                            ${dayState.team1.map(p => createPlayerCardHtml(p, day, 'team1')).join('')}
+                        </div>
+                    </div>
+
+                    <!-- 隊伍 2 -->
+                    <div class="team-dropzone" data-day="${day}" data-zone="team2" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                        <div class="team-zone-title team-2-title">
+                            <span>⚔️ 隊伍 2 (${dayState.team2.length}/6人)</span>
+                            ${t2Notes ? `<span class="missing-warning">⚠️ ${t2Notes}</span>` : ''}
+                        </div>
+                        <div class="cards-list">
+                            ${dayState.team2.map(p => createPlayerCardHtml(p, day, 'team2')).join('')}
+                        </div>
+                    </div>
+
+                    <!-- 替補池 -->
+                    <div class="team-dropzone" data-day="${day}" data-zone="backup" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+                        <div class="team-zone-title backup-zone-title">
+                            <span>📦 替補/未入隊 (${dayState.backup.length}人)</span>
+                        </div>
+                        <div class="cards-list">
+                            ${dayState.backup.map(p => createPlayerCardHtml(p, day, 'backup')).join('')}
+                        </div>
+                    </div>
+                </div>
+            </div>`;
+
+            boardDiv.innerHTML += dayHtml;
+        });
+    }
+
+    function createPlayerCardHtml(player, day, zone) {
+        return `
+            <div class="player-card" draggable="true" ondragstart="handleDragStart(event)" data-player-name="${player.name}" data-day="${day}" data-from-zone="${zone}">
+                <div class="player-info">
+                    <span class="player-name">${escapeHtml(player.name)}</span>
+                    <span class="player-details">Lv.${player.level || '-'} / ${player.runs || 1}場</span>
+                </div>
+                <span class="job-badge job-${player.job}">${player.job}</span>
+            </div>
+        `;
+    }
+
+    function checkTeamWarnings(teamPlayers, allRaidPlayers) {
+        if (teamPlayers.length === 0) return "空隊伍";
+        let notes = [];
+        
+        // 核心檢查
+        const hasMelee = teamPlayers.some(p => p.job === "英雄" || p.job === "刀賊");
+        if (!hasMelee) notes.push("缺英雄/刀賊");
+        
+        if (teamPlayers.length < 6) notes.push(`缺 ${6 - teamPlayers.length}人`);
+        if (teamPlayers.length > 6) notes.push(`爆滿 (${teamPlayers.length}人)`);
+
+        // 全場神射手檢查
+        const raidMarksmen = allRaidPlayers.filter(p => p.job === "神射手").length;
+        if (raidMarksmen > 1 && teamPlayers.some(p => p.job === "神射手")) {
+            notes.push("全場神射手>1");
+        }
+
+        return notes.join('； ');
+    }
+
+    // HTML5 Drag and Drop Event Handlers
+    window.handleDragStart = function(e) {
+        const target = e.currentTarget;
+        e.dataTransfer.setData("text/plain", JSON.stringify({
+            playerName: target.getAttribute("data-player-name"),
+            day: target.getAttribute("data-day"),
+            fromZone: target.getAttribute("data-from-zone")
+        }));
+    };
+
+    window.handleDragOver = function(e) {
+        e.preventDefault();
+        e.currentTarget.classList.add("drag-over");
+    };
+
+    window.handleDragLeave = function(e) {
+        e.currentTarget.classList.remove("drag-over");
+    };
+
+    window.handleDrop = function(e) {
+        e.preventDefault();
+        const dropzone = e.currentTarget;
+        dropzone.classList.remove("drag-over");
+
+        const data = JSON.parse(e.dataTransfer.getData("text/plain"));
+        const day = dropzone.getAttribute("data-day");
+        const toZone = dropzone.getAttribute("data-zone");
+
+        if (data.day !== day || data.fromZone === toZone) return;
+
+        const dayState = weeklyBoardState[day];
+        const fromList = dayState[data.fromZone];
+        const toList = dayState[toZone];
+
+        const playerIdx = fromList.findIndex(p => p.name === data.playerName);
+        if (playerIdx !== -1) {
+            const [movedPlayer] = fromList.splice(playerIdx, 1);
+            toList.push(movedPlayer);
+            renderWeeklyBoard();
+        }
+    };
+
+    /* -------------------------------------------------------------
+       統計與複製功能
+    ------------------------------------------------------------- */
+    window.copyTeamsText = function() {
+        if (players.length === 0) {
+            alert("目前尚無報名資料可複製！");
+            return;
+        }
+
+        let outputText = "⚔️ 【楓之谷遠征隊 最佳組隊名單】 ⚔️\n\n";
+        let hasAnyTeam = false;
+
+        DAYS_ORDER.forEach(day => {
+            const dayPlayers = players.filter(p => p.times && p.times.includes(day));
+            if (dayPlayers.length === 0) return;
+
+            hasAnyTeam = true;
+            const dayState = weeklyBoardState[day] || { team1: [], team2: [], backup: [] };
+            const allRaid = dayState.team1.concat(dayState.team2);
+
+            outputText += `📅 【${day}】 (共 ${dayPlayers.length} 人報名)\n`;
+
+            [dayState.team1, dayState.team2].forEach((team, tIdx) => {
+                let note = checkTeamWarnings(team, allRaid);
+                let noteText = note ? ` [⚠️ ${note}]` : "";
+                outputText += `  ▶ 隊伍 ${tIdx + 1} (${team.length}人)${noteText}：\n`;
+                if (team.length === 0) {
+                    outputText += `    (無成員)\n`;
+                } else {
+                    team.forEach((p, pIdx) => {
+                        outputText += `    ${pIdx + 1}. ${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)\n`;
+                    });
+                }
+            });
+
+            if (dayState.backup.length > 0) {
+                outputText += `  替補/未入隊 (${dayState.backup.length}人)：${dayState.backup.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')}\n`;
+            }
+            outputText += "\n";
+        });
+
+        if (!hasAnyTeam) {
+            alert("目前尚無任何可進行組隊的資料！");
+            return;
+        }
+
+        navigator.clipboard.writeText(outputText).then(() => {
+            alert("✅ 組隊文字已成功複製到剪貼簿！可直接貼上至群組。");
+        }).catch(err => {
+            console.error("複製失敗：", err);
+            alert("複製失敗，請手動選取文字。");
+        });
+    };
+
     function generateDailyStats() {
         const statDiv = document.getElementById('dailyStatResults');
         statDiv.innerHTML = '';
@@ -546,17 +835,10 @@
                 html += `<p style="color: #888; margin: 5px 0;">無人報名此時段。</p>`;
             } else {
                 const jobCounts = {};
-                available.forEach(p => {
-                    jobCounts[p.job] = (jobCounts[p.job] || 0) + 1;
-                });
+                available.forEach(p => { jobCounts[p.job] = (jobCounts[p.job] || 0) + 1; });
 
-                const jobSummaryText = Object.entries(jobCounts)
-                    .map(([job, count]) => `${job} x${count}`)
-                    .join('、 ');
-
-                const playerNamesText = available
-                    .map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`)
-                    .join('、 ');
+                const jobSummaryText = Object.entries(jobCounts).map(([job, count]) => `${job} x${count}`).join('、 ');
+                const playerNamesText = available.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ');
 
                 html += `<p style="margin: 5px 0;"><strong>成員名單：</strong> ${playerNamesText}</p>`;
                 html += `<p style="margin: 5px 0; color: #555; font-size: 0.95em;"><strong>職業分布：</strong> ${jobSummaryText}</p>`;
@@ -583,17 +865,10 @@
                 outputText += `  └ ⚠️ 無人報名此時段。\n\n`;
             } else {
                 const jobCounts = {};
-                available.forEach(p => {
-                    jobCounts[p.job] = (jobCounts[p.job] || 0) + 1;
-                });
+                available.forEach(p => { jobCounts[p.job] = (jobCounts[p.job] || 0) + 1; });
 
-                const jobSummaryText = Object.entries(jobCounts)
-                    .map(([job, count]) => `${job} x${count}`)
-                    .join('、 ');
-
-                const playerNamesText = available
-                    .map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`)
-                    .join('、 ');
+                const jobSummaryText = Object.entries(jobCounts).map(([job, count]) => `${job} x${count}`).join('、 ');
+                const playerNamesText = available.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ');
 
                 outputText += `  - 成員：${playerNamesText}\n`;
                 outputText += `  - 職業分布：${jobSummaryText}\n\n`;
@@ -610,173 +885,34 @@
 
     function escapeHtml(text) {
         return String(text).replace(/[&<>"']/g, function(m) {
-            return {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            }[m];
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
         });
     }
 
-    window.generateTeams = function() {
-        const resultsDiv = document.getElementById('teamResults');
-        resultsDiv.innerHTML = '';
-
-        if (players.length === 0) {
-            resultsDiv.innerHTML = '<p style="color: red;">目前沒有報名名單可供組隊！</p>';
-            return;
-        }
-
-        DAYS_ORDER.forEach(day => {
-            const slotPlayers = players.filter(p => p.times && p.times.includes(day));
-            if (slotPlayers.length === 0) return;
-
-            const result = buildTeamsForSlot(slotPlayers);
-
-            let html = `<div class="team-box">
-                <div class="team-title">📅 日期：${day} (該日共 ${slotPlayers.length} 人報名)</div>`;
-
-            if (result.teams.length === 0) {
-                html += `<p style="color: #666;">無人報名此時段。</p>`;
-            } else {
-                result.teams.forEach((tObj, tIdx) => {
-                    const team = tObj.players;
-                    let warningHtml = "";
-                    if (tObj.missingNote) {
-                        warningHtml = `<span class="missing-warning">⚠️ ${tObj.missingNote}</span>`;
-                    }
-
-                    html += `<p><strong>隊伍 ${tIdx + 1} (${team.length}人)：</strong> ${team.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')} ${warningHtml}</p>`;
-                });
-
-                if (result.backups.length > 0) {
-                    html += `<p class="backup-text">替補/未入隊 (${result.backups.length}人)：${result.backups.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')}</p>`;
-                }
-            }
-
-            html += `</div>`;
-            resultsDiv.innerHTML += html;
-        });
-    };
-
-    window.copyTeamsText = function() {
-        if (players.length === 0) {
-            alert("目前尚無報名資料可複製！");
-            return;
-        }
-
-        let outputText = "⚔️ 【楓之谷遠征隊 最佳組隊名單】 ⚔️\n\n";
-        let hasAnyTeam = false;
-
-        DAYS_ORDER.forEach(day => {
-            const slotPlayers = players.filter(p => p.times && p.times.includes(day));
-            if (slotPlayers.length === 0) return;
-
-            hasAnyTeam = true;
-            const result = buildTeamsForSlot(slotPlayers);
-
-            outputText += `📅 【${day}】 (共 ${slotPlayers.length} 人報名)\n`;
-
-            if (result.teams.length === 0) {
-                outputText += `  └ ⚠️ 無人報名此時段。\n\n`;
-            } else {
-                result.teams.forEach((tObj, tIdx) => {
-                    const team = tObj.players;
-                    let noteText = tObj.missingNote ? ` [⚠️ ${tObj.missingNote}]` : "";
-                    outputText += `  ▶ 隊伍 ${tIdx + 1} (${team.length}人)${noteText}：\n`;
-                    team.forEach((p, pIdx) => {
-                        outputText += `    ${pIdx + 1}. ${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)\n`;
-                    });
-                });
-
-                if (result.backups.length > 0) {
-                    outputText += `  替補/未入隊 (${result.backups.length}人)：${result.backups.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')}\n`;
-                }
-                outputText += "\n";
-            }
-        });
-
-        if (!hasAnyTeam) {
-            alert("目前尚無任何可進行組隊的資料！");
-            return;
-        }
-
-        navigator.clipboard.writeText(outputText).then(() => {
-            alert("✅ 組隊文字已成功複製到剪貼簿！可直接貼上至群組。");
-        }).catch(err => {
-            console.error("複製失敗：", err);
-            alert("複製失敗，請手動選取文字。");
-        });
-    };
-
     function buildTeamsForSlot(availablePlayers) {
         let pool = [...availablePlayers];
-        
-        // 全場 12 人團隊上限 (隊伍 1 + 隊伍 2 合計)
-        const RAID_LIMITS = {
-            "拳霸": 1,
-            "黑騎士": 2,
-            "神射手": 1,
-            "標賊": 1,
-            "槍神": 1,
-            "主教": 1,
-            "火毒": 1,
-            "冰雷": 1
-        };
-
-        // 單隊上限 (最多6人)
-        const SINGLE_TEAM_LIMITS = {
-            "英雄": 2,
-            "刀賊": 2,
-            "拳霸": 1,
-            "黑騎士": 2,
-            "神射手": 1,
-            "標賊": 1,
-            "槍神": 1,
-            "主教": 1,
-            "火毒": 1,
-            "冰雷": 1
-        };
+        const RAID_LIMITS = { "拳霸": 1, "黑騎士": 2, "神射手": 1, "標賊": 1, "槍神": 1, "主教": 1, "火毒": 1, "冰雷": 1 };
+        const SINGLE_TEAM_LIMITS = { "英雄": 2, "刀賊": 2, "拳霸": 1, "黑騎士": 2, "神射手": 1, "標賊": 1, "槍神": 1, "主教": 1, "火毒": 1, "冰雷": 1 };
 
         let raidJobCounts = {};
         let teams = [];
-
-        // 預先決定需要幾隊（只要大於 6 人就必須分隊 1 與隊伍 2，最多 2 隊 12 人）
-        let targetTeamCount = 1;
-        if (pool.length > 6) {
-            targetTeamCount = 2;
-        }
+        let targetTeamCount = pool.length > 6 ? 2 : 1;
 
         for (let teamIdx = 0; teamIdx < targetTeamCount; teamIdx++) {
             let currentTeam = [];
             let singleTeamJobCounts = {};
 
-            // 檢查能否把此球員放入當前隊伍（同時通過全場限制與單隊限制）
             function canAddPlayer(player) {
                 const job = player.job;
-
-                // 1. 英雄與刀賊：單隊合計最多 2 人
                 if (job === "英雄" || job === "刀賊") {
                     const meleeInTeam = (singleTeamJobCounts["英雄"] || 0) + (singleTeamJobCounts["刀賊"] || 0);
                     if (meleeInTeam >= 2) return false;
                 }
-
-                // 2. 檢查全場 12 人上限
-                if (RAID_LIMITS[job] !== undefined) {
-                    if ((raidJobCounts[job] || 0) >= RAID_LIMITS[job]) return false;
-                }
-
-                // 3. 檢查單隊 6 人上限
-                if (SINGLE_TEAM_LIMITS[job] !== undefined) {
-                    if ((singleTeamJobCounts[job] || 0) >= SINGLE_TEAM_LIMITS[job]) return false;
-                }
-
+                if (RAID_LIMITS[job] !== undefined && (raidJobCounts[job] || 0) >= RAID_LIMITS[job]) return false;
+                if (SINGLE_TEAM_LIMITS[job] !== undefined && (singleTeamJobCounts[job] || 0) >= SINGLE_TEAM_LIMITS[job]) return false;
                 return true;
             }
 
-            // 步驟 A: 優先放入核心近戰 (英雄 / 刀賊)
             const coreIndex = pool.findIndex(p => (p.job === "英雄" || p.job === "刀賊") && canAddPlayer(p));
             if (coreIndex !== -1) {
                 const corePlayer = pool.splice(coreIndex, 1)[0];
@@ -785,7 +921,6 @@
                 raidJobCounts[corePlayer.job] = (raidJobCounts[corePlayer.job] || 0) + 1;
             }
 
-            // 步驟 B: 依序填滿至多 6 人 (依配額與規則過濾)
             let i = 0;
             while (currentTeam.length < 6 && i < pool.length) {
                 const player = pool[i];
@@ -799,27 +934,10 @@
                 }
             }
 
-            // 步驟 C: 檢查隊伍缺少的條件並產生備註提示
-            let missingNotes = [];
-            const hasMelee = currentTeam.some(p => p.job === "英雄" || p.job === "刀賊");
-            if (!hasMelee) {
-                missingNotes.push("尚缺：英雄/刀賊");
-            }
-            if (currentTeam.length < 6) {
-                missingNotes.push(`尚缺 ${6 - currentTeam.length} 人`);
-            }
-
-            teams.push({
-                players: currentTeam,
-                missingNote: missingNotes.join("； ")
-            });
+            teams.push({ players: currentTeam });
         }
 
-        // 剩餘無法入隊或超過上限的人員，全部歸類為替補
-        return {
-            teams: teams,
-            backups: pool
-        };
+        return { teams: teams, backups: pool };
     }
 </script>
 
