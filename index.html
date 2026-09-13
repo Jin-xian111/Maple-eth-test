@@ -100,10 +100,32 @@
         .btn-team-copy:hover {
             background-color: #F57C00;
         }
+        .btn-stat-copy {
+            background-color: #9C27B0;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+        .btn-stat-copy:hover {
+            background-color: #7B1FA2;
+        }
+        .btn-action-group {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+        .btn-edit {
+            background-color: #FF9800;
+            width: auto;
+            padding: 6px 10px;
+            font-size: 0.85em;
+        }
+        .btn-edit:hover {
+            background-color: #E65100;
+        }
         .btn-danger {
             background-color: #f44336;
             width: auto;
-            padding: 6px 12px;
+            padding: 6px 10px;
             font-size: 0.85em;
         }
         .btn-danger:hover {
@@ -134,14 +156,57 @@
             margin-bottom: 15px;
             background-color: #f9fbf9;
         }
+        .stat-box {
+            border: 2px solid #2196F3;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            background-color: #f4f9ff;
+        }
         .team-title {
             font-weight: bold;
             color: #2e7d32;
             font-size: 1.1em;
             margin-bottom: 10px;
         }
+        .stat-title {
+            font-weight: bold;
+            color: #1565c0;
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
         .clear {
             clear: both;
+        }
+
+        /* Modal 彈出視窗樣式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        .modal-footer {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .btn-secondary {
+            background-color: #78909C;
+        }
+        .btn-secondary:hover {
+            background-color: #546E7A;
         }
     </style>
 </head>
@@ -180,6 +245,10 @@
             </select>
         </div>
         <div class="form-group">
+            <label for="playerRuns">可參加場數：</label>
+            <input type="number" id="playerRuns" placeholder="請輸入可參加場數 (預設: 1)" min="1" max="20" value="1">
+        </div>
+        <div class="form-group">
             <label>可參加日期：</label>
             <div class="checkbox-group">
                 <label><input type="checkbox" name="timeSlot" value="週二"> 週二</label>
@@ -206,12 +275,13 @@
                     <th>玩家暱稱</th>
                     <th>等級</th>
                     <th>職業</th>
+                    <th>可參加場數</th>
                     <th>可參加日期</th>
                     <th>操作</th>
                 </tr>
             </thead>
             <tbody id="playerTableBody">
-                <tr><td colspan="6">載入中...</td></tr>
+                <tr><td colspan="7">載入中...</td></tr>
             </tbody>
         </table>
     </div>
@@ -224,6 +294,44 @@
             <button class="btn-team-copy" onclick="copyTeamsText()">📋 複製組隊名單 (文字格式)</button>
         </div>
         <div id="teamResults" style="margin-top: 20px;"></div>
+    </div>
+
+    <!-- 4. 每日可參加人員統計 -->
+    <div style="margin-top: 30px;">
+        <h2>4. 每日可參加人員統計 (週二 ~ 週一)</h2>
+        <button class="btn-stat-copy" onclick="copyDailyStatsText()">📋 複製每日統計 (文字格式)</button>
+        <div id="dailyStatResults"></div>
+    </div>
+</div>
+
+<!-- 編輯視窗 Modal -->
+<div id="editModal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 style="margin-top: 0;">✏️ 編輯玩家報名資料</h2>
+        <p>玩家：<strong id="editPlayerNameText"></strong> (<span id="editPlayerJobText"></span>)</p>
+        
+        <div class="form-group">
+            <label for="editRuns">可參加場數：</label>
+            <input type="number" id="editRuns" min="1" max="20">
+        </div>
+
+        <div class="form-group">
+            <label>可參加日期：</label>
+            <div class="checkbox-group">
+                <label><input type="checkbox" name="editTimeSlot" value="週二"> 週二</label>
+                <label><input type="checkbox" name="editTimeSlot" value="週三"> 週三</label>
+                <label><input type="checkbox" name="editTimeSlot" value="週四"> 週四</label>
+                <label><input type="checkbox" name="editTimeSlot" value="週五"> 週五</label>
+                <label><input type="checkbox" name="editTimeSlot" value="週六"> 週六</label>
+                <label><input type="checkbox" name="editTimeSlot" value="週日"> 週日</label>
+                <label><input type="checkbox" name="editTimeSlot" value="週一"> 週一</label>
+            </div>
+        </div>
+
+        <div class="modal-footer">
+            <button style="flex:1" onclick="savePlayerEdit()">儲存更新</button>
+            <button style="flex:1" class="btn-secondary" onclick="closeEditModal()">取消</button>
+        </div>
     </div>
 </div>
 
@@ -247,15 +355,16 @@
     const db = getDatabase(app);
     const playersRef = ref(db, 'maple_players');
 
-    // 定義統一的星期順序：二、三、四、五、六、日、一
     const DAYS_ORDER = ["週二", "週三", "週四", "週五", "週六", "週日", "週一"];
 
     let players = [];
+    let currentEditIndex = null;
 
     onValue(playersRef, (snapshot) => {
         const data = snapshot.val();
         players = data ? data : [];
         updateUI();
+        generateDailyStats();
         document.getElementById('syncStatus').innerText = "🟢 已與雲端資料庫同步（即時連線中）";
         document.getElementById('syncStatus').style.backgroundColor = "#e8f5e9";
         document.getElementById('syncStatus').style.color = "#2e7d32";
@@ -273,12 +382,14 @@
     window.submitRegistration = function() {
         const nameInput = document.getElementById('playerName');
         const levelInput = document.getElementById('playerLevel');
+        const runsInput = document.getElementById('playerRuns');
+        
         const name = nameInput.value.trim();
         const level = levelInput.value.trim();
+        const runs = runsInput.value.trim() || "1";
         const job = document.getElementById('playerJob').value;
         const timeBoxes = document.querySelectorAll('input[name="timeSlot"]:checked');
         
-        // 依照自訂順序排序勾選的日期
         const selectedTimes = Array.from(timeBoxes).map(cb => cb.value);
         const times = DAYS_ORDER.filter(day => selectedTimes.includes(day));
 
@@ -295,14 +406,60 @@
             return;
         }
 
-        const newPlayer = { name, level, job, times };
+        const newPlayer = { name, level, job, runs, times };
         const updatedPlayers = [...players, newPlayer];
         
         saveToFirebase(updatedPlayers);
 
         nameInput.value = '';
         levelInput.value = '';
+        runsInput.value = '1';
         timeBoxes.forEach(cb => cb.checked = false);
+    };
+
+    window.openEditModal = function(index) {
+        currentEditIndex = index;
+        const p = players[index];
+        
+        document.getElementById('editPlayerNameText').innerText = p.name;
+        document.getElementById('editPlayerJobText').innerText = `Lv.${p.level || '-'} ${p.job}`;
+        document.getElementById('editRuns').value = p.runs || 1;
+
+        const editTimeBoxes = document.querySelectorAll('input[name="editTimeSlot"]');
+        editTimeBoxes.forEach(cb => {
+            cb.checked = p.times && p.times.includes(cb.value);
+        });
+
+        document.getElementById('editModal').style.display = 'flex';
+    };
+
+    window.closeEditModal = function() {
+        document.getElementById('editModal').style.display = 'none';
+        currentEditIndex = null;
+    };
+
+    window.savePlayerEdit = function() {
+        if (currentEditIndex === null) return;
+
+        const newRuns = document.getElementById('editRuns').value.trim() || "1";
+        const editTimeBoxes = document.querySelectorAll('input[name="editTimeSlot"]:checked');
+        const selectedTimes = Array.from(editTimeBoxes).map(cb => cb.value);
+        const newTimes = DAYS_ORDER.filter(day => selectedTimes.includes(day));
+
+        if (newTimes.length === 0) {
+            alert("請至少選擇一個可參加日期！");
+            return;
+        }
+
+        const updatedPlayers = [...players];
+        updatedPlayers[currentEditIndex] = {
+            ...updatedPlayers[currentEditIndex],
+            runs: newRuns,
+            times: newTimes
+        };
+
+        saveToFirebase(updatedPlayers);
+        closeEditModal();
     };
 
     window.deletePlayer = function(index) {
@@ -329,12 +486,11 @@
         tbody.innerHTML = '';
 
         if (players.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6">目前尚無人報名</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7">目前尚無人報名</td></tr>';
             return;
         }
 
         players.forEach((p, index) => {
-            // 讓玩家顯示的日期也按照「二~一」順序呈現
             const sortedTimes = DAYS_ORDER.filter(day => p.times && p.times.includes(day));
             const tr = document.createElement('tr');
             tr.innerHTML = `
@@ -342,12 +498,99 @@
                 <td>${escapeHtml(p.name)}</td>
                 <td>Lv.${escapeHtml(p.level || '-')}</td>
                 <td>${escapeHtml(p.job)}</td>
+                <td>${escapeHtml(p.runs || '1')} 場</td>
                 <td>${sortedTimes.join(', ')}</td>
-                <td><button class="btn-danger" onclick="deletePlayer(${index})">刪除</button></td>
+                <td>
+                    <div class="btn-action-group">
+                        <button class="btn-edit" onclick="openEditModal(${index})">✏️ 編輯</button>
+                        <button class="btn-danger" onclick="deletePlayer(${index})">🗑️ 刪除</button>
+                    </div>
+                </td>
             `;
             tbody.appendChild(tr);
         });
     }
+
+    function generateDailyStats() {
+        const statDiv = document.getElementById('dailyStatResults');
+        statDiv.innerHTML = '';
+
+        if (players.length === 0) {
+            statDiv.innerHTML = '<p style="color: #666;">目前尚無人報名資料可統計。</p>';
+            return;
+        }
+
+        DAYS_ORDER.forEach(day => {
+            const available = players.filter(p => p.times && p.times.includes(day));
+            
+            let html = `<div class="stat-box">
+                <div class="stat-title">📅 ${day} (可參加：${available.length} 人)</div>`;
+
+            if (available.length === 0) {
+                html += `<p style="color: #888; margin: 5px 0;">無人報名此時段。</p>`;
+            } else {
+                const jobCounts = {};
+                available.forEach(p => {
+                    jobCounts[p.job] = (jobCounts[p.job] || 0) + 1;
+                });
+
+                const jobSummaryText = Object.entries(jobCounts)
+                    .map(([job, count]) => `${job} x${count}`)
+                    .join('、 ');
+
+                const playerNamesText = available
+                    .map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`)
+                    .join('、 ');
+
+                html += `<p style="margin: 5px 0;"><strong>成員名單：</strong> ${playerNamesText}</p>`;
+                html += `<p style="margin: 5px 0; color: #555; font-size: 0.95em;"><strong>職業分布：</strong> ${jobSummaryText}</p>`;
+            }
+
+            html += `</div>`;
+            statDiv.innerHTML += html;
+        });
+    }
+
+    window.copyDailyStatsText = function() {
+        if (players.length === 0) {
+            alert("目前尚無報名資料可複製！");
+            return;
+        }
+
+        let outputText = "📊 【楓之谷遠征隊 每日可參加人員統計】 📊\n\n";
+
+        DAYS_ORDER.forEach(day => {
+            const available = players.filter(p => p.times && p.times.includes(day));
+            outputText += `📅 【${day}】 (共 ${available.length} 人)\n`;
+
+            if (available.length === 0) {
+                outputText += `  └ ⚠️ 無人報名此時段。\n\n`;
+            } else {
+                const jobCounts = {};
+                available.forEach(p => {
+                    jobCounts[p.job] = (jobCounts[p.job] || 0) + 1;
+                });
+
+                const jobSummaryText = Object.entries(jobCounts)
+                    .map(([job, count]) => `${job} x${count}`)
+                    .join('、 ');
+
+                const playerNamesText = available
+                    .map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`)
+                    .join('、 ');
+
+                outputText += `  - 成員：${playerNamesText}\n`;
+                outputText += `  - 職業分布：${jobSummaryText}\n\n`;
+            }
+        });
+
+        navigator.clipboard.writeText(outputText).then(() => {
+            alert("✅ 每日統計文字已成功複製到剪貼簿！");
+        }).catch(err => {
+            console.error("複製失敗：", err);
+            alert("複製失敗，請手動選取文字。");
+        });
+    };
 
     function escapeHtml(text) {
         return String(text).replace(/[&<>"']/g, function(m) {
@@ -383,14 +626,14 @@
                 html += `<p style="color: #666;">人數不足（未滿 6 人）或缺乏必要職業（英雄/刀賊）無法組隊。</p>`;
             } else {
                 teams.forEach((team, tIdx) => {
-                    html += `<p><strong>隊伍 ${tIdx + 1} (6人)：</strong> ${team.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job})`).join('、 ')}</p>`;
+                    html += `<p><strong>隊伍 ${tIdx + 1} (6人)：</strong> ${team.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')}</p>`;
                 });
                 const totalAssigned = teams.reduce((acc, t) => acc + t.length, 0);
                 if (slotPlayers.length > totalAssigned) {
                     const assignedNames = new Set(teams.flat().map(p => p.name));
                     const leftovers = slotPlayers.filter(p => !assignedNames.has(p.name));
                     if (leftovers.length > 0) {
-                        html += `<p style="color: #666; font-size: 0.9em;">替補/未入隊 (${leftovers.length}人)：${leftovers.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job})`).join('、 ')}</p>`;
+                        html += `<p style="color: #666; font-size: 0.9em;">替補/未入隊 (${leftovers.length}人)：${leftovers.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')}</p>`;
                     }
                 }
             }
@@ -424,7 +667,7 @@
                 teams.forEach((team, tIdx) => {
                     outputText += `  ▶ 隊伍 ${tIdx + 1} (6人)：\n`;
                     team.forEach((p, pIdx) => {
-                        outputText += `    ${pIdx + 1}. ${p.name} (Lv.${p.level || '-'} ${p.job})\n`;
+                        outputText += `    ${pIdx + 1}. ${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)\n`;
                     });
                 });
 
@@ -433,7 +676,7 @@
                     const assignedNames = new Set(teams.flat().map(p => p.name));
                     const leftovers = slotPlayers.filter(p => !assignedNames.has(p.name));
                     if (leftovers.length > 0) {
-                        outputText += `  └ 替補/未入隊 (${leftovers.length}人)：${leftovers.map(p => `${p.name} (${p.job})`).join('、 ')}\n`;
+                        outputText += `  └ 替補/未入隊 (${leftovers.length}人)：${leftovers.map(p => `${p.name} (${p.job} / ${p.runs || 1}場)`).join('、 ')}\n`;
                     }
                 }
                 outputText += "\n";
