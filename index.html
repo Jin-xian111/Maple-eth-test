@@ -175,6 +175,22 @@
             font-size: 1.1em;
             margin-bottom: 10px;
         }
+        .missing-warning {
+            color: #d32f2f;
+            font-weight: bold;
+            background-color: #ffebee;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.9em;
+            margin-left: 8px;
+        }
+        .backup-text {
+            color: #795548;
+            font-weight: bold;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed #ccc;
+        }
         .clear {
             clear: both;
         }
@@ -617,24 +633,26 @@
             const slotPlayers = players.filter(p => p.times && p.times.includes(day));
             if (slotPlayers.length === 0) return;
 
-            const teams = buildTeamsForSlot(slotPlayers);
+            const result = buildTeamsForSlot(slotPlayers);
 
             let html = `<div class="team-box">
                 <div class="team-title">📅 日期：${day} (該日共 ${slotPlayers.length} 人報名)</div>`;
 
-            if (teams.length === 0) {
-                html += `<p style="color: #666;">人數不足（未滿 6 人）或缺乏必要職業（英雄/刀賊）無法組隊。</p>`;
+            if (result.teams.length === 0) {
+                html += `<p style="color: #666;">無人報名此時段。</p>`;
             } else {
-                teams.forEach((team, tIdx) => {
-                    html += `<p><strong>隊伍 ${tIdx + 1} (6人)：</strong> ${team.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')}</p>`;
-                });
-                const totalAssigned = teams.reduce((acc, t) => acc + t.length, 0);
-                if (slotPlayers.length > totalAssigned) {
-                    const assignedNames = new Set(teams.flat().map(p => p.name));
-                    const leftovers = slotPlayers.filter(p => !assignedNames.has(p.name));
-                    if (leftovers.length > 0) {
-                        html += `<p style="color: #666; font-size: 0.9em;">替補/未入隊 (${leftovers.length}人)：${leftovers.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')}</p>`;
+                result.teams.forEach((tObj, tIdx) => {
+                    const team = tObj.players;
+                    let warningHtml = "";
+                    if (tObj.missingNote) {
+                        warningHtml = `<span class="missing-warning">⚠️ ${tObj.missingNote}</span>`;
                     }
+
+                    html += `<p><strong>隊伍 ${tIdx + 1} (${team.length}人)：</strong> ${team.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')} ${warningHtml}</p>`;
+                });
+
+                if (result.backups.length > 0) {
+                    html += `<p class="backup-text">替補/未入隊 (${result.backups.length}人)：${result.backups.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')}</p>`;
                 }
             }
 
@@ -657,27 +675,24 @@
             if (slotPlayers.length === 0) return;
 
             hasAnyTeam = true;
-            const teams = buildTeamsForSlot(slotPlayers);
+            const result = buildTeamsForSlot(slotPlayers);
 
             outputText += `📅 【${day}】 (共 ${slotPlayers.length} 人報名)\n`;
 
-            if (teams.length === 0) {
-                outputText += `  └ ⚠️ 人數不足或缺乏英雄/刀賊，無法成立隊伍。\n\n`;
+            if (result.teams.length === 0) {
+                outputText += `  └ ⚠️ 無人報名此時段。\n\n`;
             } else {
-                teams.forEach((team, tIdx) => {
-                    outputText += `  ▶ 隊伍 ${tIdx + 1} (6人)：\n`;
+                result.teams.forEach((tObj, tIdx) => {
+                    const team = tObj.players;
+                    let noteText = tObj.missingNote ? ` [⚠️ ${tObj.missingNote}]` : "";
+                    outputText += `  ▶ 隊伍 ${tIdx + 1} (${team.length}人)${noteText}：\n`;
                     team.forEach((p, pIdx) => {
                         outputText += `    ${pIdx + 1}. ${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)\n`;
                     });
                 });
 
-                const totalAssigned = teams.reduce((acc, t) => acc + t.length, 0);
-                if (slotPlayers.length > totalAssigned) {
-                    const assignedNames = new Set(teams.flat().map(p => p.name));
-                    const leftovers = slotPlayers.filter(p => !assignedNames.has(p.name));
-                    if (leftovers.length > 0) {
-                        outputText += `  └ 替補/未入隊 (${leftovers.length}人)：${leftovers.map(p => `${p.name} (${p.job} / ${p.runs || 1}場)`).join('、 ')}\n`;
-                    }
+                if (result.backups.length > 0) {
+                    outputText += `  替補/未入隊 (${result.backups.length}人)：${result.backups.map(p => `${p.name} (Lv.${p.level || '-'} ${p.job} / ${p.runs || 1}場)`).join('、 ')}\n`;
                 }
                 outputText += "\n";
             }
@@ -698,64 +713,113 @@
 
     function buildTeamsForSlot(availablePlayers) {
         let pool = [...availablePlayers];
+        
+        // 全場 12 人團隊上限 (隊伍 1 + 隊伍 2 合計)
+        const RAID_LIMITS = {
+            "拳霸": 1,
+            "黑騎士": 2,
+            "神射手": 1,
+            "標賊": 1,
+            "槍神": 1,
+            "主教": 1,
+            "火毒": 1,
+            "冰雷": 1
+        };
+
+        // 單隊上限 (最多6人)
+        const SINGLE_TEAM_LIMITS = {
+            "英雄": 2,
+            "刀賊": 2,
+            "拳霸": 1,
+            "黑騎士": 2,
+            "神射手": 1,
+            "標賊": 1,
+            "槍神": 1,
+            "主教": 1,
+            "火毒": 1,
+            "冰雷": 1
+        };
+
+        let raidJobCounts = {};
         let teams = [];
 
-        while (pool.length >= 6) {
-            const coreMeleeIndices = pool.reduce((acc, p, idx) => {
-                if (p.job === "英雄" || p.job === "刀賊") acc.push(idx);
-                return acc;
-            }, []);
+        // 預先決定需要幾隊（只要大於 6 人就必須分隊 1 與隊伍 2，最多 2 隊 12 人）
+        let targetTeamCount = 1;
+        if (pool.length > 6) {
+            targetTeamCount = 2;
+        }
 
-            if (coreMeleeIndices.length === 0) {
-                break;
-            }
-
+        for (let teamIdx = 0; teamIdx < targetTeamCount; teamIdx++) {
             let currentTeam = [];
-            let jobCounts = {
-                "黑騎士": 0, "拳霸": 0, "神射手": 0, "標賊": 0, "槍神": 0,
-                "主教": 0, "火毒": 0, "冰雷": 0, "英雄": 0, "刀賊": 0, "箭神": 0, "聖騎士": 0
-            };
+            let singleTeamJobCounts = {};
 
-            function canAddJob(job) {
-                const meleeCount = jobCounts["英雄"] + jobCounts["刀賊"];
-                
+            // 檢查能否把此球員放入當前隊伍（同時通過全場限制與單隊限制）
+            function canAddPlayer(player) {
+                const job = player.job;
+
+                // 1. 英雄與刀賊：單隊合計最多 2 人
                 if (job === "英雄" || job === "刀賊") {
-                    return meleeCount < 2;
+                    const meleeInTeam = (singleTeamJobCounts["英雄"] || 0) + (singleTeamJobCounts["刀賊"] || 0);
+                    if (meleeInTeam >= 2) return false;
                 }
-                if (job === "黑騎士") return jobCounts["黑騎士"] < 2;
-                if (["拳霸", "神射手", "標賊", "槍神", "主教", "火毒", "冰雷"].includes(job)) {
-                    return (jobCounts[job] || 0) < 1;
+
+                // 2. 檢查全場 12 人上限
+                if (RAID_LIMITS[job] !== undefined) {
+                    if ((raidJobCounts[job] || 0) >= RAID_LIMITS[job]) return false;
                 }
+
+                // 3. 檢查單隊 6 人上限
+                if (SINGLE_TEAM_LIMITS[job] !== undefined) {
+                    if ((singleTeamJobCounts[job] || 0) >= SINGLE_TEAM_LIMITS[job]) return false;
+                }
+
                 return true;
             }
 
-            function addPlayerToTeam(playerIndex) {
-                const player = pool.splice(playerIndex, 1)[0];
-                currentTeam.push(player);
-                jobCounts[player.job] = (jobCounts[player.job] || 0) + 1;
+            // 步驟 A: 優先放入核心近戰 (英雄 / 刀賊)
+            const coreIndex = pool.findIndex(p => (p.job === "英雄" || p.job === "刀賊") && canAddPlayer(p));
+            if (coreIndex !== -1) {
+                const corePlayer = pool.splice(coreIndex, 1)[0];
+                currentTeam.push(corePlayer);
+                singleTeamJobCounts[corePlayer.job] = (singleTeamJobCounts[corePlayer.job] || 0) + 1;
+                raidJobCounts[corePlayer.job] = (raidJobCounts[corePlayer.job] || 0) + 1;
             }
 
-            addPlayerToTeam(coreMeleeIndices[0]);
-
+            // 步驟 B: 依序填滿至多 6 人 (依配額與規則過濾)
             let i = 0;
             while (currentTeam.length < 6 && i < pool.length) {
                 const player = pool[i];
-                if (canAddJob(player.job)) {
-                    addPlayerToTeam(i);
+                if (canAddPlayer(player)) {
+                    const addedPlayer = pool.splice(i, 1)[0];
+                    currentTeam.push(addedPlayer);
+                    singleTeamJobCounts[addedPlayer.job] = (singleTeamJobCounts[addedPlayer.job] || 0) + 1;
+                    raidJobCounts[addedPlayer.job] = (raidJobCounts[addedPlayer.job] || 0) + 1;
                 } else {
                     i++;
                 }
             }
 
-            if (currentTeam.length === 6) {
-                teams.push(currentTeam);
-            } else {
-                pool.push(...currentTeam);
-                break;
+            // 步驟 C: 檢查隊伍缺少的條件並產生備註提示
+            let missingNotes = [];
+            const hasMelee = currentTeam.some(p => p.job === "英雄" || p.job === "刀賊");
+            if (!hasMelee) {
+                missingNotes.push("尚缺：英雄/刀賊");
             }
+            if (currentTeam.length < 6) {
+                missingNotes.push(`尚缺 ${6 - currentTeam.length} 人`);
+            }
+
+            teams.push({
+                players: currentTeam,
+                missingNote: missingNotes.join("； ")
+            });
         }
 
-        return teams;
+        // 剩餘無法入隊或超過上限的人員，全部歸類為替補
+        return {
+            teams: teams,
+            backups: pool
+        };
     }
 </script>
 
